@@ -1,40 +1,64 @@
-var CHR = require('chr')             // load the module
-var chr = CHR()                      // create new solver
+const express = require('express');
+const bodyParser = require('body-parser');
+const CHR = require('chr');
+
+const app = express();
+
+
+app.use(bodyParser.json());
+
+app.post('/impliedrelationscheck', async (req, res) => {
+
+    /* vb.:
+        *[
+  {
+    "constraint": "all_edge",
+    "args": ["node1", "node2"]
+  },
+  {
+    "constraint": "all_edge",
+    "args": ["node2", "node3"]
+  },
+  {
+    "constraint": "all_edge",
+    "args": ["node1", "node3"]
+  }
+]
+        */
+
+    const chr = CHR();
+    // generalize provided constraints
+    chr('all_edge(A,B) ==> all_relation(A,B)');
+    chr('any_edge(A,B) ==> any_relation(A,B)');
     
-// add the rule
-chr('upto(Max), fib(A,AV), fib(B,BV) ==> \
-       B === A+1, B < Max | fib(B+1,AV+BV)')
+    // avoid drawing same conclusion twice
+    chr('all_relation(A,B), all_relation(A,B) <=> all_relation(A,B)');
+    chr('any_relation(A,B), any_relation(A,B) <=> any_relation(A,B)');
+    // avoid nested terms for easier handling of JSON data
+    chr('implied_all_edge(A,B), implied_all_edge(A,B) <=> implied_all_edge(A,B)');
+    chr('implied_any_edge(A,B), implied_any_edge(A,B) <=> implied_any_edge(A,B)');
+    chr('any_edge_rendered_pointless_by(C, B, A),\
+         any_edge_rendered_pointless_by(C, B, A) <=>\
+         any_edge_rendered_pointless_by(C, B, A)');
+    
+    chr('all_relation(A,B), all_relation(B,C) ==>\
+         all_relation(A,C), implied_all_edge(A,C)');
+    chr('any_relation(A,C), all_relation(B,C) ==>\
+         any_relation(A,B), implied_any_edge(A,B)');
+    chr('any_relation(A,B), all_relation(A,B), any_relation(C,B) ==>\
+         C != A |\
+         any_edge_rendered_pointless_by(C, B, A);');
 
-console.log(chr.Store.toString())    // print the content of the
-                                     //   constraint store
-/* results in:
-    (empty)
-*/
+    const initialData = req.body;
+    const initialConstraints = initialData.map(({constraint, args}) => {
+        console.debug({constraint, args});
+        return chr[constraint](...args);
+    });
+    console.debug(initialConstraints);
+    await Promise.all(initialConstraints);
+    res.status(200).send(chr.Store.toString());
+});
 
-Promise.all([
-  chr.fib(1,1),                      // the first Fibonacci is 1
-  chr.fib(2,1)                       // the second is 1
-]).then(function () {
-  console.log(chr.Store.toString())  // both have been stored
-  /* results in:
-      ID  Constraint
-      --  ----------
-      1   fib(1,1)  
-      2   fib(2,1)  
-  */
-
-  // now generate the Fibonaccis upto the 5th element
-  chr.upto(5).then(function () {
-    console.log(chr.Store.toString())
-  })
-  /* results in:
-      ID  Constraint
-      --  ----------
-      1   fib(1,1)  
-      2   fib(2,1)  
-      3   upto(5)   
-      4   fib(3,2)  
-      5   fib(4,3)  
-      6   fib(5,5)
-  */
-})
+app.listen(3000, () => {
+  console.log('Ready to process constraints!');
+});
