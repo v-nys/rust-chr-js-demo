@@ -11,10 +11,12 @@
           pkgs.cargo
           pkgs.rustc
           pkgs.nodejs_20
+          pkgs.pkg-config
+          pkgs.openssl
         ];
         shellHook =
           ''
-          npm install
+          npm install;
           '';
         RUST_BACKTRACE = 1;
       };

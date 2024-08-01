@@ -8,24 +8,6 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post('/impliedrelationscheck', async (req, res) => {
-
-    /* vb.:
-        *[
-  {
-    "constraint": "all_edge",
-    "args": ["node1", "node2"]
-  },
-  {
-    "constraint": "all_edge",
-    "args": ["node2", "node3"]
-  },
-  {
-    "constraint": "all_edge",
-    "args": ["node1", "node3"]
-  }
-]
-        */
-
     const chr = CHR();
     // generalize provided constraints
     chr('all_edge(A,B) ==> all_relation(A,B)');
